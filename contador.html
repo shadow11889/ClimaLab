@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ClimaLab — Contador de Dados</title><link rel="stylesheet" href="css/climalab.css"></head><body>
+<header class="site-header"><nav class="nav"><a class="brand" href="index.html">🌍 ClimaLab</a><div class="nav-links"><a href="graficos.html">Gráficos</a><a href="contador.html">Contador</a><a href="carbono.html">Carbono</a><a href="sobre.html">Projeto</a></div></nav></header>
+<main class="container"><section class="section"><h1>📊 Contador de Dados (CO₂e)</h1><p class="muted">Configure suas atividades e fatores de emissão. A taxa é calculada em kg/s internamente e exibida na unidade escolhida. O estado é salvo no navegador.</p>
+<div class="result-grid"><div class="result"><small>Total acumulado</small><strong id="total">0 kg</strong></div><div class="result"><small>Taxa atual</small><strong id="taxa">0 kg/s</strong></div><div class="result"><small>Equivalente anual</small><strong id="anual">0 t/ano</strong></div></div>
+<div class="controls"><button class="btn" id="btnStart">Iniciar</button><button class="btn alt" id="btnPause">Pausar</button><button class="btn danger" id="btnReset">Zerar</button>
+<select id="unit"><option value="per_sec">kg/s</option><option value="per_min">kg/min</option><option value="per_hour">kg/h</option><option value="per_day">kg/dia</option><option value="per_year">t/ano</option></select><input id="initial" type="number" step="any" value="0" placeholder="Valor inicial"></div>
+<div class="table-wrap"><table id="tbl"><thead><tr><th>Atividade</th><th>Quantidade</th><th>Unidade</th><th>Fator</th><th>Unidade do fator</th><th>Taxa equivalente</th><th></th></tr></thead><tbody></tbody></table></div>
+<button class="btn" id="add" style="margin-top:14px">Adicionar linha</button>
+<div class="notice" style="margin-top:16px">Convenções: 1 t = 1000 kg; 1 ano = 365 dias. Os fatores são editáveis e devem ser adequados ao contexto do estudo.</div>
+</section></main><footer><p>Desenvolvido no IFMS – Campus Coxim, Mato Grosso do Sul, Brasil.  Pesquisa e Inovação Tecnológica © 2026 ClimaLab</p></footer>
+<script>
+const KEY='climalab_counter_state_v3';
+let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
+  initial:0, unit:'per_day', running:false, accumulated:0,
+  rows:[
+    {name:'Eletricidade',q:200,qUnit:'kWh/dia',factor:.08,fUnit:'kg/kWh'},
+    {name:'Frota',q:50,qUnit:'L/dia',factor:2.27,fUnit:'kg/L'},
+    {name:'Transporte',q:300,qUnit:'km/dia',factor:.18,fUnit:'kg/km'}
+  ]
+};
+
+const SEC={
+  per_sec:1, per_min:60, per_hour:3600, per_day:86400, per_year:31536000
+};
+
+function unitSeconds(u){
+  const m=String(u||'').trim().toLowerCase().match(/\/\s*(s|seg|min|h|hora|dia|d|ano|a)/);
+  if(!m) return 1;
+  return {
+    s:1, seg:1, min:60, h:3600, hora:3600,
+    dia:86400, d:86400, ano:31536000, a:31536000
+  }[m[1]] || 1;
+}
+
+/* Todas as taxas internas são convertidas para kg/s. */
+function emissionRateKgPerSec(){
+  return state.rows.reduce((sum,r)=>{
+    const q=Number(r.q)||0;
+    const factor=Number(r.factor)||0;
+    return sum + (q/unitSeconds(r.qUnit))*factor;
+  },0);
+}
+
+function formatMass(kg){
+  kg=Math.max(0,Number(kg)||0);
+  if(kg<0.001) return (kg*1e6).toFixed(2)+' mg';
+  if(kg<1) return (kg*1000).toFixed(2)+' g';
+  if(kg<1000) return kg.toFixed(2)+' kg';
+  if(kg<1e6) return (kg/1000).toFixed(3)+' t';
+  return (kg/1e6).toFixed(3)+' kt';
+}
+
+function formatRate(rateKgPerSec, unit){
+  if(unit==='per_year')
+    return (rateKgPerSec*31536000/1000).toFixed(3)+' t/ano';
+  const multiplier=SEC[unit]||86400;
+  const suffix={per_sec:'kg/s',per_min:'kg/min',per_hour:'kg/h',per_day:'kg/dia'}[unit]||'kg/dia';
+  const value=rateKgPerSec*multiplier;
+  if(value<0.01) return (value*1000).toFixed(2)+' g/'+suffix.split('/')[1];
+  return value.toFixed(3)+' '+suffix;
+}
+
+function save(){localStorage.setItem(KEY,JSON.stringify(state));}
+
+function render(){
+  const tb=document.querySelector('#tbl tbody');
+  tb.innerHTML='';
+  state.rows.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td contenteditable="true">${r.name}</td>
+      <td><input type="number" step="any" value="${r.q}"></td>
+      <td><input value="${r.qUnit}"></td>
+      <td><input type="number" step="any" value="${r.factor}"></td>
+      <td><input value="${r.fUnit}"></td>
+      <td class="eq"></td>
+      <td><button class="btn danger del">Excluir</button></td>`;
+    tr.querySelectorAll('input').forEach((el,j)=>{
+      el.oninput=()=>{
+        [r.q,r.qUnit,r.factor,r.fUnit][j]=(j===0||j===2)?Number(el.value):el.value;
+        save(); calc();
+      };
+    });
+    tr.children[0].oninput=()=>{
+      r.name=tr.children[0].textContent;
+      save();
+    };
+    tr.querySelector('.del').onclick=()=>{
+      state.rows.splice(i,1);
+      save(); render(); calc();
+    };
+    tb.appendChild(tr);
+  });
+  calc();
+}
+
+function calc(){
+  const r=emissionRateKgPerSec();
+
+  document.querySelectorAll('.eq').forEach((e,i)=>{
+    const row=state.rows[i];
+    const rowRate=(Number(row.q)||0)/unitSeconds(row.qUnit)*(Number(row.factor)||0);
+    e.textContent=formatRate(rowRate,'per_sec');
+  });
+
+  document.getElementById('taxa').textContent=formatRate(r,state.unit);
+  document.getElementById('anual').textContent=(r*31536000/1000).toFixed(3)+' t/ano';
+  document.getElementById('total').textContent=formatMass(state.accumulated);
+
+  const sel=document.getElementById('unit');
+  if(sel.value!==state.unit) sel.value=state.unit;
+}
+
+let last=performance.now();
+
+function tick(t){
+  const dt=Math.min((t-last)/1000,1);
+  last=t;
+  if(state.running){
+    state.accumulated += emissionRateKgPerSec()*dt;
+    calc();
+    save();
+  }
+  requestAnimationFrame(tick);
+}
+
+document.getElementById('add').onclick=()=>{
+  state.rows.push({name:'Nova atividade',q:0,qUnit:'kg/dia',factor:0,fUnit:'kg/kg'});
+  save(); render();
+};
+
+document.getElementById('btnStart').onclick=()=>{
+  state.running=true;
+  last=performance.now();
+  save(); calc();
+};
+
+document.getElementById('btnPause').onclick=()=>{
+  state.running=false;
+  save(); calc();
+};
+
+document.getElementById('btnReset').onclick=()=>{
+  state.running=false;
+  state.initial=Number(document.getElementById('initial').value)||0;
+  state.accumulated=state.initial;
+  last=performance.now();
+  save(); calc();
+};
+
+document.getElementById('unit').value=state.unit;
+document.getElementById('unit').onchange=e=>{
+  state.unit=e.target.value;
+  save(); calc();
+};
+
+document.getElementById('initial').value=state.initial;
+
+render();
+requestAnimationFrame(tick);
+</script><script src="js/climalab.js"></script></body></html>
