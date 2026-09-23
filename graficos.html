@@ -1,34 +1,73 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ClimaLab — Gráficos Climáticos</title><link rel="stylesheet" href="css/climalab.css"></head><body>
-<header class="site-header"><nav class="nav"><a class="brand" href="index.html">🌍 ClimaLab</a><div class="nav-links"><a href="graficos.html">Gráficos</a><a href="contador.html">Contador</a><a href="carbono.html">Carbono</a><a href="sobre.html">Projeto</a></div></nav></header>
-<main class="container"><section class="section"><h1>📈 Gráficos Climáticos</h1><p class="muted">Explore os dados, acrescente observações e gere projeções. Os valores são editáveis durante a sessão.</p>
-<div class="controls"><select id="chartSelector"></select><input id="labelInput" placeholder="Nome do dado"><input id="valueInput" type="number" step="any" placeholder="Valor">
-<select id="methodSelector"><option value="linear">Linear</option><option value="media">Média móvel</option><option value="percentual">Crescimento percentual</option></select>
-<select id="scenarioSelector"><option value="otimista">Otimista</option><option value="real" selected>Realista</option><option value="pessimista">Pessimista</option></select>
-<button class="btn" id="addBtn">Adicionar</button><button class="btn alt" id="removeBtn">Remover último</button><button class="btn" id="projectBtn">Projetar futuro</button></div>
-<div class="chart-box"><div id="chartTitle"></div><svg id="chart" viewBox="0 0 1000 500" role="img" aria-label="Gráfico climático"></svg></div>
-</section></main>
-<footer><p>Desenvolvido no IFMS – Campus Coxim, Mato Grosso do Sul, Brasil.  Pesquisa e Inovação Tecnológica © 2026 ClimaLab</p></footer>
-<script>
-const datasets={emissoes:{label:'Emissões (GtCO₂e)',data:[25,28,31,34,37,40,42,45]},temperatura:{label:'Temperatura Média (°C)',data:[14,14.2,14.4,14.6,14.9,15.1,15.3,15.6]}};
-let charts={};
-const sel=document.getElementById('chartSelector'), svg=document.getElementById('chart');
-Object.keys(datasets).forEach((k,i)=>{let o=document.createElement('option');o.value=k;o.textContent=datasets[k].label;sel.appendChild(o);charts[k]={labels:[2018,2019,2020,2021,2022,2023,2024,2025],data:[...datasets[k].data],projections:[]};});
-function draw(){
- const key=sel.value,d=charts[key],all=d.data; document.getElementById('chartTitle').textContent=datasets[key].label;
- const W=1000,H=500,p={l:70,r:25,t:35,b:65}, values=[...all,...d.projections.map(x=>x.value)];
- const min=Math.min(...values),max=Math.max(...values),range=(max-min)||1;
- let s=`<rect x="0" y="0" width="${W}" height="${H}" rx="14" fill="#111b2e"/>`;
- for(let i=0;i<6;i++){let y=p.t+i*(H-p.t-p.b)/5,val=max-(range*i/5);s+=`<line x1="${p.l}" x2="${W-p.r}" y1="${y}" y2="${y}" stroke="#263653"/>`;s+=`<text x="${p.l-10}" y="${y+4}" text-anchor="end" fill="#aebbd0" font-size="13">${val.toFixed(1)}</text>`;}
- const labels=[...d.labels,...d.projections.map(x=>x.label)], pts=values.map((v,i)=>[p.l+i*(W-p.l-p.r)/Math.max(1,labels.length-1),p.t+(max-v)/range*(H-p.t-p.b)]);
- s+=`<polyline fill="none" stroke="#38bdf8" stroke-width="4" points="${pts.slice(0,all.length).map(x=>x.join(',')).join(' ')}"/>`;
- pts.slice(0,all.length).forEach((x,i)=>s+=`<circle cx="${x[0]}" cy="${x[1]}" r="5" fill="#38bdf8"/><text x="${x[0]}" y="${H-30}" text-anchor="middle" fill="#aebbd0" font-size="12">${labels[i]}</text>`);
- if(d.projections.length){let pp=pts.slice(all.length-1);s+=`<polyline fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="8 6" points="${pp.map(x=>x.join(',')).join(' ')}"/>`;d.projections.forEach((x,j)=>{let pt=pts[all.length+j];s+=`<circle cx="${pt[0]}" cy="${pt[1]}" r="4" fill="#fbbf24"/><text x="${pt[0]}" y="${H-30}" text-anchor="middle" fill="#fbbf24" font-size="12">${x.label}</text>`});}
- s+=`<text x="${W/2}" y="${H-8}" text-anchor="middle" fill="#eef4ff">Ano</text>`;svg.innerHTML=s;
-}
-function add(){let l=document.getElementById('labelInput').value.trim(),v=Number(document.getElementById('valueInput').value);if(!l||!Number.isFinite(v))return;let d=charts[sel.value];d.labels.push(l);d.data.push(v);d.projections=[];document.getElementById('labelInput').value='';document.getElementById('valueInput').value='';draw()}
-function remove(){let d=charts[sel.value];if(d.data.length>1){d.labels.pop();d.data.pop();d.projections=[];draw()}}
-function project(){let d=charts[sel.value],method=document.getElementById('methodSelector').value,scenario=document.getElementById('scenarioSelector').value;if(d.data.length<2)return;let factor={otimista:.7,real:1,pessimista:1.3}[scenario],last=d.data[d.data.length-1],prev=d.data[d.data.length-2],base=(last-prev)*factor;d.projections=[];for(let i=1;i<=5;i++){let v;if(method==='linear')v=last+base*i;else if(method==='media'){let n=Math.min(3,d.data.length),avg=d.data.slice(-n).reduce((a,b)=>a+b,0)/n;v=last+(avg-last)*factor*i/5}else{let rate=((last/prev)-1)*factor;v=last*Math.pow(1+rate,i)}d.projections.push({label:'P'+i,value:v})}draw()}
-sel.onchange=draw;document.getElementById('addBtn').onclick=add;document.getElementById('removeBtn').onclick=remove;document.getElementById('projectBtn').onclick=project;draw();
-</script><script src="js/climalab.js"></script></body></html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>ClimaLab — Gráficos Climáticos</title>
+    <link rel="stylesheet" href="css/climalab.css">
+</head>
+
+<body>
+    <header class="site-header">
+        <nav class="nav"><a class="brand" href="index.html">🌍 ClimaLab</a>
+            <div class="nav-links"><a href="graficos.html">Gráficos</a><a href="contador.html">Contador</a><a
+                    href="carbono.html">Carbono</a><a href="sobre.html">Projeto</a></div>
+        </nav>
+    </header>
+    <main class="container">
+        <section class="section">
+            <h1>📈 Gráficos Climáticos</h1>
+            <p class="muted">Explore os dados, acrescente observações e gere projeções. Os valores são editáveis durante
+                a sessão.</p>
+            <div class="controls"><select id="chartSelector"></select><input id="labelInput"
+                    placeholder="Nome do dado"><input id="valueInput" type="number" step="any" placeholder="Valor">
+                <select id="methodSelector">
+                    <option value="linear">Linear</option>
+                    <option value="media">Média móvel</option>
+                    <option value="percentual">Crescimento percentual</option>
+                </select>
+                <select id="scenarioSelector">
+                    <option value="otimista">Otimista</option>
+                    <option value="real" selected>Realista</option>
+                    <option value="pessimista">Pessimista</option>
+                </select>
+                <button class="btn" id="addBtn">Adicionar</button><button class="btn alt" id="removeBtn">Remover
+                    último</button><button class="btn" id="projectBtn">Projetar futuro</button>
+            </div>
+            <div class="chart-box">
+                <div id="chartTitle"></div><svg id="chart" viewBox="0 0 1000 500" role="img"
+                    aria-label="Gráfico climático"></svg>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>Desenvolvido no IFMS – Campus Coxim, Mato Grosso do Sul, Brasil. Pesquisa e Inovação Tecnológica © 2026
+            ClimaLab</p>
+    </footer>
+    <script>
+        const datasets = { emissoes: { label: 'Emissões (GtCO₂e)', data: [25, 28, 31, 34, 37, 40, 42, 45] }, temperatura: { label: 'Temperatura Média (°C)', data: [14, 14.2, 14.4, 14.6, 14.9, 15.1, 15.3, 15.6] } };
+        let charts = {};
+        const sel = document.getElementById('chartSelector'), svg = document.getElementById('chart');
+        Object.keys(datasets).forEach((k, i) => { let o = document.createElement('option'); o.value = k; o.textContent = datasets[k].label; sel.appendChild(o); charts[k] = { labels: [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], data: [...datasets[k].data], projections: [] }; });
+        function draw() {
+            const key = sel.value, d = charts[key], all = d.data; document.getElementById('chartTitle').textContent = datasets[key].label;
+            const W = 1000, H = 500, p = { l: 70, r: 25, t: 35, b: 65 }, values = [...all, ...d.projections.map(x => x.value)];
+            const min = Math.min(...values), max = Math.max(...values), range = (max - min) || 1;
+            let s = `<rect x="0" y="0" width="${W}" height="${H}" rx="14" fill="#111b2e"/>`;
+            for (let i = 0; i < 6; i++) { let y = p.t + i * (H - p.t - p.b) / 5, val = max - (range * i / 5); s += `<line x1="${p.l}" x2="${W - p.r}" y1="${y}" y2="${y}" stroke="#263653"/>`; s += `<text x="${p.l - 10}" y="${y + 4}" text-anchor="end" fill="#aebbd0" font-size="13">${val.toFixed(1)}</text>`; }
+            const labels = [...d.labels, ...d.projections.map(x => x.label)], pts = values.map((v, i) => [p.l + i * (W - p.l - p.r) / Math.max(1, labels.length - 1), p.t + (max - v) / range * (H - p.t - p.b)]);
+            s += `<polyline fill="none" stroke="#38bdf8" stroke-width="4" points="${pts.slice(0, all.length).map(x => x.join(',')).join(' ')}"/>`;
+            pts.slice(0, all.length).forEach((x, i) => s += `<circle cx="${x[0]}" cy="${x[1]}" r="5" fill="#38bdf8"/><text x="${x[0]}" y="${H - 30}" text-anchor="middle" fill="#aebbd0" font-size="12">${labels[i]}</text>`);
+            if (d.projections.length) { let pp = pts.slice(all.length - 1); s += `<polyline fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="8 6" points="${pp.map(x => x.join(',')).join(' ')}"/>`; d.projections.forEach((x, j) => { let pt = pts[all.length + j]; s += `<circle cx="${pt[0]}" cy="${pt[1]}" r="4" fill="#fbbf24"/><text x="${pt[0]}" y="${H - 30}" text-anchor="middle" fill="#fbbf24" font-size="12">${x.label}</text>` }); }
+            s += `<text x="${W / 2}" y="${H - 8}" text-anchor="middle" fill="#eef4ff">Ano</text>`; svg.innerHTML = s;
+        }
+        function add() { let l = document.getElementById('labelInput').value.trim(), v = Number(document.getElementById('valueInput').value); if (!l || !Number.isFinite(v)) return; let d = charts[sel.value]; d.labels.push(l); d.data.push(v); d.projections = []; document.getElementById('labelInput').value = ''; document.getElementById('valueInput').value = ''; draw() }
+        function remove() { let d = charts[sel.value]; if (d.data.length > 1) { d.labels.pop(); d.data.pop(); d.projections = []; draw() } }
+        function project() { let d = charts[sel.value], method = document.getElementById('methodSelector').value, scenario = document.getElementById('scenarioSelector').value; if (d.data.length < 2) return; let factor = { otimista: .7, real: 1, pessimista: 1.3 }[scenario], last = d.data[d.data.length - 1], prev = d.data[d.data.length - 2], base = (last - prev) * factor; d.projections = []; for (let i = 1; i <= 5; i++) { let v; if (method === 'linear') v = last + base * i; else if (method === 'media') { let n = Math.min(3, d.data.length), avg = d.data.slice(-n).reduce((a, b) => a + b, 0) / n; v = last + (avg - last) * factor * i / 5 } else { let rate = ((last / prev) - 1) * factor; v = last * Math.pow(1 + rate, i) } d.projections.push({ label: 'P' + i, value: v }) } draw() }
+        sel.onchange = draw; document.getElementById('addBtn').onclick = add; document.getElementById('removeBtn').onclick = remove; document.getElementById('projectBtn').onclick = project; draw();
+    </script>
+    <script src="js/climalab.js"></script>
+</body>
+
+</html>
