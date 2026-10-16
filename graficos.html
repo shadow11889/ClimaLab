@@ -4,7 +4,6 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <link rel="icon" type="image.png" href="earth.png">
     <title>ClimaLab — Gráficos Climáticos</title>
     <link rel="stylesheet" href="css/climalab.css">
 </head>
@@ -47,7 +46,11 @@
             ClimaLab</p>
     </footer>
     <script>
-        const datasets = { emissoes: { label: 'Emissões (GtCO₂e)', data: [25, 28, 31, 34, 37, 40, 42, 45] }, temperatura: { label: 'Temperatura Média (°C)', data: [14, 14.2, 14.4, 14.6, 14.9, 15.1, 15.3, 15.6] } };
+        const datasets = {
+            emissoes: { label: 'Emissões (GtCO₂e)', data: [25, 28, 31, 34, 37, 40, 42, 45] },
+            temperatura: { label: 'Temperatura Média (°C)', data: [14, 14.2, 14.4, 14.6, 14.9, 15.1, 15.3, 15.6] },
+            queimadas: { label: 'Focos de Queimadas (milhares)', data: [180, 195, 220, 210, 240, 260, 285, 310] }
+        };
         let charts = {};
         const sel = document.getElementById('chartSelector'), svg = document.getElementById('chart');
         Object.keys(datasets).forEach((k, i) => { let o = document.createElement('option'); o.value = k; o.textContent = datasets[k].label; sel.appendChild(o); charts[k] = { labels: [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025], data: [...datasets[k].data], projections: [] }; });
